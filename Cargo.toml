@@ -1,9 +1,12 @@
 [package]
+edition = "2021"
 name = "rdiesel"
 version = "0.1.0"
-edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 diesel = "2.1.5"
+
+[dev-dependencies]
+diesel = { version = "2.1.5", features = ["postgres"] }
