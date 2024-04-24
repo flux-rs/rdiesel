@@ -121,6 +121,8 @@ impl<R> Expr<R, i32> for i32 {}
 
 impl<R> Expr<R, bool> for bool {}
 
+impl<R> Expr<R, String> for String {}
+
 pub fn select_list<Conn, R, Q>(_conn: &mut Conn, _q: Q) -> QueryResult<Vec<R>>
 where
     Q: Expr<R, bool>,
