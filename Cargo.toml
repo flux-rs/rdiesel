@@ -7,6 +7,10 @@ version = "0.1.0"
 
 [dependencies]
 diesel = "2.1.5"
+flux-rs = { git = "https://github.com/flux-rs/flux" }
 
 [dev-dependencies]
 diesel = { version = "2.1.5", features = ["postgres"] }
+
+[package.metadata.flux]
+enabled = true

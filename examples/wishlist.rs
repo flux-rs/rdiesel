@@ -1,5 +1,5 @@
 use diesel::{associations::Identifiable, Queryable, Selectable};
-use rdiesel::{select_list, Expr};
+use rdiesel::{select_list, update_where, Expr};
 
 mod schema {
     diesel::table! {
@@ -10,6 +10,15 @@ mod schema {
             price -> Integer,
             body -> Text,
             access_level -> Text,
+        }
+    }
+
+    diesel::table! {
+        friendships (id) {
+            id -> Int4,
+            user1 -> Varchar,
+            user2 -> Varchar,
+            friend_status -> Varchar,
         }
     }
 }
@@ -46,6 +55,37 @@ pub fn test2(conn: &mut diesel::pg::PgConnection, owners: Vec<i32>) -> Vec<Wish>
     .unwrap()
 }
 
-fn foo<T: Expr<Wish, bool>>(x: T) {}
+pub fn test3(conn: &mut diesel::pg::PgConnection) {
+    use diesel::RunQueryDsl;
+    // use schema::friendships::dsl::*;
+    use schema::wishes::dsl::*;
+
+    // update_where(conn, access_level.eq("public".to_string()));
+    update_where(
+        conn,
+        access_level.eq("public".to_string()),
+        diesel::ExpressionMethods::eq(access_level, "public".to_string()),
+    );
+    // diesel::update(diesel::QueryDsl::filter(
+    //     wishes,
+    //     diesel::ExpressionMethods::eq(access_level, "public".to_string()),
+    // ))
+    // .set(diesel::ExpressionMethods::eq(
+    //     access_level,
+    //     "public".to_string(),
+    // ))
+    // .execute(conn);
+
+    // diesel::update(wishes)
+    //     .filter(diesel::ExpressionMethods::eq(
+    //         access_level,
+    //         "public".to_string(),
+    //     ))
+    //     .set(diesel::ExpressionMethods::eq(
+    //         access_level,
+    //         "public".to_string(),
+    //     ))
+    //     .execute(conn);
+}
 
 fn main() {}
