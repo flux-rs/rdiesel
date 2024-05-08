@@ -1,10 +1,11 @@
 use diesel::{
     expression::AsExpression,
     sql_types::{Bool, SingleValue, SqlType},
-    BoolExpressionMethods as _, Expression, ExpressionMethods as _,
+    AppearsOnTable, AsChangeset, BoolExpressionMethods as _, Column, Expression,
+    ExpressionMethods as _,
 };
 
-use crate::{And, Eq, EqAny, Gt, Lt, Or};
+use crate::{And, Assign, Changeset, Eq, EqAny, Gt, Lt, Or};
 
 pub trait ToDiesel {
     type DieselType;
@@ -91,6 +92,35 @@ const _: () = {
 
         fn to_diesel(self) -> Self::DieselType {
             self.lhs.eq_any(self.rhs)
+        }
+    }
+
+    // impl<Target, Expr> ToDiesel for Assign<Target, Expr>
+    // where
+    //     Target: Column,
+    //     Target::SqlType: SqlType + SingleValue,
+    //     Expr: AsExpression<Target::SqlType>,
+    // {
+    //     type DieselType = diesel::dsl::Eq<Target, Expr>;
+
+    //     fn to_diesel(self) -> Self::DieselType {
+    //         diesel::ExpressionMethods::eq(self.target, self.expr)
+    //     }
+    // }
+
+    impl<A, B> AsChangeset for Assign<A, B>
+    where
+        A: Column,
+        A::SqlType: SqlType + SingleValue,
+        B: AsExpression<A::SqlType>,
+        <B as AsExpression<A::SqlType>>::Expression: AppearsOnTable<A::Table>,
+    {
+        type Target = A::Table;
+
+        type Changeset = <diesel::dsl::Eq<A, B> as AsChangeset>::Changeset;
+
+        fn as_changeset(self) -> Self::Changeset {
+            diesel::ExpressionMethods::eq(self.target, self.expr).as_changeset()
         }
     }
 };
