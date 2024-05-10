@@ -1,5 +1,5 @@
 use diesel::{associations::Identifiable, Queryable, Selectable};
-use rdiesel::{select_list, Expr};
+use rdiesel::{select_list, update_where, Expr, Field};
 
 mod schema {
     diesel::table! {
@@ -10,6 +10,15 @@ mod schema {
             price -> Integer,
             body -> Text,
             access_level -> Text,
+        }
+    }
+
+    diesel::table! {
+        friendships (id) {
+            id -> Int4,
+            user1 -> Varchar,
+            user2 -> Varchar,
+            friend_status -> Varchar,
         }
     }
 }
@@ -25,8 +34,13 @@ pub struct Wish {
     pub access_level: String,
 }
 
+impl Field<Wish, i32> for schema::wishes::price {}
 impl Expr<Wish, i32> for schema::wishes::price {}
+
+impl Field<Wish, String> for schema::wishes::access_level {}
 impl Expr<Wish, String> for schema::wishes::access_level {}
+
+impl Field<Wish, i32> for schema::wishes::owner {}
 impl Expr<Wish, i32> for schema::wishes::owner {}
 
 pub fn test1(conn: &mut diesel::pg::PgConnection) -> Vec<Wish> {
@@ -46,6 +60,17 @@ pub fn test2(conn: &mut diesel::pg::PgConnection, owners: Vec<i32>) -> Vec<Wish>
     .unwrap()
 }
 
-fn foo<T: Expr<Wish, bool>>(x: T) {}
+pub fn test3(conn: &mut diesel::pg::PgConnection) {
+    use schema::wishes::dsl::*;
+
+    // UPDATE wishes
+    // SET access_level = "private", price = 0
+    // WHERE price > 1000
+    let _ = update_where(
+        conn,
+        price.gt(1000),
+        (access_level.assign("private".to_string()), price.assign(0)),
+    );
+}
 
 fn main() {}
