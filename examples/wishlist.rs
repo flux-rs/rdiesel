@@ -63,13 +63,13 @@ pub fn test2(conn: &mut diesel::pg::PgConnection, owners: Vec<i32>) -> Vec<Wish>
 pub fn test3(conn: &mut diesel::pg::PgConnection) {
     use schema::wishes::dsl::*;
 
+    // UPDATE wishes
+    // SET access_level = "private", price = 0
+    // WHERE price > 1000
     let _ = update_where(
         conn,
-        access_level.eq("public".to_string()),
-        (
-            access_level.assign("public".to_string()),
-            access_level.assign("private".to_string()),
-        ),
+        price.gt(1000),
+        (access_level.assign("private".to_string()), price.assign(0)),
     );
 }
 
