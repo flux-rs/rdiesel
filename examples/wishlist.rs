@@ -1,6 +1,7 @@
 use diesel::{associations::Identifiable, Queryable, Selectable};
 use rdiesel::{select_list, update_where, Expr, Field};
 
+#[flux_rs::trusted]
 mod schema {
     diesel::table! {
         wishes (id) {
