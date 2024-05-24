@@ -1,8 +1,12 @@
 use diesel::QueryResult;
+use flux_rs::*;
 mod bridge;
 
+#[generics(Self as base, R as base, V as base)]
+#[assoc(fn eval(expr: Self, row: R) -> V)]
 pub trait Expr<R, V>: Sized {
-    fn eq<E>(self, rhs: E) -> Eq<V, Self, E> {
+    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Eq<V, Self, T>[lhs, rhs])]
+    fn eq<T>(self, rhs: T) -> Eq<V, Self, T> {
         Eq {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -10,7 +14,8 @@ pub trait Expr<R, V>: Sized {
         }
     }
 
-    fn lt<E>(self, rhs: E) -> Lt<V, Self, E> {
+    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Lt<V, Self, T>[lhs, rhs])]
+    fn lt<T>(self, rhs: T) -> Lt<V, Self, T> {
         Lt {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -18,7 +23,8 @@ pub trait Expr<R, V>: Sized {
         }
     }
 
-    fn gt<E>(self, rhs: E) -> Gt<V, Self, E> {
+    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Gt<V, Self, T>[lhs, rhs])]
+    fn gt<T>(self, rhs: T) -> Gt<V, Self, T> {
         Gt {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -30,94 +36,137 @@ pub trait Expr<R, V>: Sized {
         EqAny { lhs: self, rhs }
     }
 
-    fn and<E>(self, rhs: E) -> And<Self, E>
+    #[sig(fn<T as base>(lhs: Self, rhs: T) -> And<Self, T>[lhs, rhs])]
+    fn and<T>(self, rhs: T) -> And<Self, T>
     where
         Self: Expr<R, bool>,
-        E: Expr<R, bool>,
+        T: Expr<R, bool>,
     {
         And { lhs: self, rhs }
     }
 
-    fn or<E>(self, rhs: E) -> Or<Self, E>
+    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Or<Self, T>[lhs, rhs])]
+    fn or<T>(self, rhs: T) -> Or<Self, T>
     where
         Self: Expr<R, bool>,
-        E: Expr<R, bool>,
+        T: Expr<R, bool>,
     {
         Or { lhs: self, rhs }
     }
 }
 
-pub struct And<E1, E2> {
-    lhs: E1,
-    rhs: E2,
+flux! (
+
+pub struct And<A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
 }
 
-impl<R, E1, E2> Expr<R, bool> for And<E1, E2>
-where
-    E1: Expr<R, bool>,
-    E2: Expr<R, bool>,
-{
+pub struct Or<A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
 }
 
-pub struct Or<E1, E2> {
-    lhs: E1,
-    rhs: E2,
-}
-
-impl<R, E1, E2> Expr<R, bool> for Or<E1, E2>
-where
-    E1: Expr<R, bool>,
-    E2: Expr<R, bool>,
-{
-}
-pub struct Eq<V, E1, E2> {
-    lhs: E1,
-    rhs: E2,
+pub struct Eq<V, A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
     _val: std::marker::PhantomData<V>,
 }
 
-impl<R, E1, E2, V> Expr<R, bool> for Eq<V, E1, E2>
-where
-    E1: Expr<R, V>,
-    E2: Expr<R, V>,
-{
-}
-
-pub struct Gt<V, E1, E2> {
-    lhs: E1,
-    rhs: E2,
+pub struct Gt<V, A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
     _val: std::marker::PhantomData<V>,
 }
 
-impl<R, E1, E2, V> Expr<R, bool> for Gt<V, E1, E2>
-where
-    E1: Expr<R, V>,
-    E2: Expr<R, V>,
-{
-}
-
-pub struct Lt<V, E1, E2> {
-    lhs: E1,
-    rhs: E2,
+pub struct Lt<V, A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
     _val: std::marker::PhantomData<V>,
 }
 
-impl<R, E1, E2, V> Expr<R, bool> for Lt<V, E1, E2>
-where
-    E1: Expr<R, V>,
-    E2: Expr<R, V>,
-{
-}
-
-pub struct EqAny<V, E> {
-    lhs: E,
+pub struct EqAny<V, T> {
+    lhs: T,
     rhs: Vec<V>,
 }
 
-impl<R, E, V> Expr<R, bool> for EqAny<V, E> where E: Expr<R, V> {}
+);
 
+#[generics(R as base, A as base, B as base)]
+#[assoc(
+    fn eval(expr: And<A, B>, row: R) -> bool {
+        <A as Expr<R, bool>>::eval(expr.lhs, row) && <B as Expr<R, bool>>::eval(expr.rhs, row)
+    }
+)]
+impl<R, A, B> Expr<R, bool> for And<A, B>
+where
+    A: Expr<R, bool>,
+    B: Expr<R, bool>,
+{
+}
+
+#[generics(R as base, A as base, B as base)]
+#[assoc(
+    fn eval(expr: Or<A, B>, row: R) -> bool {
+        <A as Expr<R, bool>>::eval(expr.lhs, row) || <B as Expr<R, bool>>::eval(expr.rhs, row)
+    }
+)]
+impl<R, A, B> Expr<R, bool> for Or<A, B>
+where
+    A: Expr<R, bool>,
+    B: Expr<R, bool>,
+{
+}
+
+#[generics(R as base, A as base, B as base, V as base)]
+#[assoc(
+    fn eval(expr: Eq<A, B>, row: R) -> bool {
+        <A as Expr<R, V>>::eval(expr.lhs, row) == <B as Expr<R, V>>::eval(expr.rhs, row)
+    }
+)]
+impl<R, A, B, V> Expr<R, bool> for Eq<V, A, B>
+where
+    A: Expr<R, V>,
+    B: Expr<R, V>,
+{
+}
+
+#[generics(R as base, A as base, B as base, V as base)]
+#[assoc(
+    fn eval(expr: Gt<A, B>, row: R) -> bool {
+        <A as Expr<R, V>>::eval(expr.lhs, row) > <B as Expr<R, V>>::eval(expr.rhs, row)
+    }
+)]
+impl<R, A, B, V> Expr<R, bool> for Gt<V, A, B>
+where
+    A: Expr<R, V>,
+    B: Expr<R, V>,
+{
+}
+
+#[generics(R as base, A as base, B as base, V as base)]
+#[assoc(
+    fn eval(expr: Lt<A, B>, row: R) -> bool {
+        <A as Expr<R, V>>::eval(expr.lhs, row) < <B as Expr<R, V>>::eval(expr.rhs, row)
+    }
+)]
+impl<R, A, B, V> Expr<R, bool> for Lt<V, A, B>
+where
+    A: Expr<R, V>,
+    B: Expr<R, V>,
+{
+}
+
+#[generics(R as base, T as base, V as base)]
+#[assoc(fn eval(expr: EqAny, row: R) -> bool { true })]
+impl<R, T, V> Expr<R, bool> for EqAny<V, T> where T: Expr<R, V> {}
+
+#[generics(R as base)]
+#[assoc(fn eval(val: Self, row: R) -> int { val })]
 impl<R> Expr<R, i32> for i32 {}
 
+#[generics(R as base)]
+#[assoc(fn eval(val: Self, row: R) -> bool { val })]
 impl<R> Expr<R, bool> for bool {}
 
 impl<R> Expr<R, String> for String {}
@@ -136,7 +185,8 @@ pub trait Field<R, V>: Expr<R, V> {
     }
 }
 
-#[flux_rs::trusted]
+#[trusted]
+#[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
 pub fn select_list<'query, Conn, R, Q>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R>>
 where
     Q: Expr<R, bool>,
@@ -145,7 +195,8 @@ where
     R::select_list(conn, q)
 }
 
-#[flux_rs::trusted]
+#[trusted]
+#[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q) -> QueryResult<Option<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
 pub fn select_first<'query, Conn, R, Q>(conn: &mut Conn, q: Q) -> QueryResult<Option<R>>
 where
     Q: Expr<R, bool>,
@@ -154,7 +205,7 @@ where
     R::select_first(conn, q)
 }
 
-#[flux_rs::trusted]
+#[trusted]
 pub fn update_where<Conn, R, Q, C>(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>
 where
     Q: Expr<R, bool>,
