@@ -1,11 +1,4 @@
-use bridge::ToDiesel;
-use diesel::{
-    associations::HasTable,
-    dsl::Limit,
-    query_builder::{AsQuery, IntoUpdateTarget, UpdateStatement},
-    query_dsl::methods::{ExecuteDsl, FilterDsl, LimitDsl, LoadQuery},
-    AsChangeset, Connection, QueryResult,
-};
+use diesel::QueryResult;
 mod bridge;
 
 pub trait Expr<R, V>: Sized {
@@ -184,48 +177,26 @@ where
 #[flux_rs::trusted]
 pub fn select_list<'query, Conn, R, Q>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R>>
 where
-    R: HasTable,
-    Q: Expr<R, bool> + ToDiesel,
-    R::Table: FilterDsl<<Q as ToDiesel>::DieselType>,
-    <R::Table as FilterDsl<<Q as ToDiesel>::DieselType>>::Output: LoadQuery<'query, Conn, R>,
+    Q: Expr<R, bool>,
+    R: bridge::SelectList<'query, Conn, Q>,
 {
-    use diesel::RunQueryDsl;
-    diesel::QueryDsl::filter(R::table(), q.to_diesel()).load::<R>(conn)
+    R::select_list(conn, q)
 }
 
 #[flux_rs::trusted]
 pub fn select_first<'query, Conn, R, Q>(conn: &mut Conn, q: Q) -> QueryResult<Option<R>>
 where
-    R: HasTable,
-    Q: Expr<R, bool> + ToDiesel,
-    R::Table: FilterDsl<Q::DieselType>,
-    <R::Table as FilterDsl<Q::DieselType>>::Output: LimitDsl,
-    Limit<<R::Table as FilterDsl<Q::DieselType>>::Output>: LoadQuery<'query, Conn, R>,
+    Q: Expr<R, bool>,
+    R: bridge::SelectFirst<'query, Conn, Q>,
 {
-    use diesel::{OptionalExtension, RunQueryDsl};
-    diesel::QueryDsl::filter(R::table(), q.to_diesel())
-        .limit(1)
-        .get_result(conn)
-        .optional()
+    R::select_first(conn, q)
 }
 
 #[flux_rs::trusted]
-pub fn update_where<'query, Conn, R, Q, C>(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>
+pub fn update_where<Conn, R, Q, C>(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>
 where
-    R: HasTable,
-    Q: Expr<R, bool> + ToDiesel,
-    R::Table: FilterDsl<Q::DieselType>,
-    <R::Table as FilterDsl<Q::DieselType>>::Output: IntoUpdateTarget,
-    Conn: Connection,
-    C: AsChangeset<Target = <<R::Table as FilterDsl<Q::DieselType>>::Output as HasTable>::Table>
-        + Changeset<R>,
-    UpdateStatement<
-        <<R::Table as FilterDsl<Q::DieselType>>::Output as HasTable>::Table,
-        <<R::Table as FilterDsl<Q::DieselType>>::Output as IntoUpdateTarget>::WhereClause,
-        C::Changeset,
-    >: AsQuery + ExecuteDsl<Conn>,
+    Q: Expr<R, bool>,
+    R: bridge::UpdateWhere<Conn, Q, C>,
 {
-    use diesel::RunQueryDsl;
-    let filter = diesel::QueryDsl::filter(R::table(), q.to_diesel());
-    diesel::update(filter).set(v).execute(conn)
+    R::update_where(conn, q, v)
 }
