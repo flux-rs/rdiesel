@@ -136,44 +136,6 @@ pub trait Field<R, V>: Expr<R, V> {
     }
 }
 
-pub trait Changeset<R> {}
-
-impl<R, F, V> Changeset<R> for Assign<F, V> {}
-
-impl<R, T0, T1> Changeset<R> for (T0, T1)
-where
-    T0: Changeset<R>,
-    T1: Changeset<R>,
-{
-}
-
-impl<R, T0, T1, T2> Changeset<R> for (T0, T1, T2)
-where
-    T0: Changeset<R>,
-    T1: Changeset<R>,
-    T2: Changeset<R>,
-{
-}
-
-impl<R, T0, T1, T2, T3> Changeset<R> for (T0, T1, T2, T3)
-where
-    T0: Changeset<R>,
-    T1: Changeset<R>,
-    T2: Changeset<R>,
-    T3: Changeset<R>,
-{
-}
-
-impl<R, T0, T1, T2, T3, T4> Changeset<R> for (T0, T1, T2, T3, T4)
-where
-    T0: Changeset<R>,
-    T1: Changeset<R>,
-    T2: Changeset<R>,
-    T3: Changeset<R>,
-    T4: Changeset<R>,
-{
-}
-
 #[flux_rs::trusted]
 pub fn select_list<'query, Conn, R, Q>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R>>
 where
