@@ -206,6 +206,7 @@ where
 }
 
 #[trusted]
+#[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>)]
 pub fn update_where<Conn, R, Q, C>(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>
 where
     Q: Expr<R, bool>,

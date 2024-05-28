@@ -1,7 +1,8 @@
 use diesel::{associations::Identifiable, Queryable, Selectable};
+use flux_rs::*;
 use rdiesel::{select_list, update_where, Expr, Field};
 
-#[flux_rs::trusted]
+#[trusted]
 mod schema {
     diesel::table! {
         wishes (id) {
@@ -10,7 +11,7 @@ mod schema {
             title -> Text,
             price -> Integer,
             body -> Text,
-            access_level -> Text,
+            access_level -> Integer,
         }
     }
 
@@ -26,23 +27,34 @@ mod schema {
 
 #[derive(Queryable, Selectable, Identifiable)]
 #[diesel(table_name = crate::schema::wishes)]
+#[refined_by(id: int, owner: int, price: int, level: int)]
 pub struct Wish {
+    #[field(i32[id])]
     pub id: i32,
+    #[field(i32[owner])]
     pub owner: i32,
     pub title: String,
+    #[field(i32[price])]
     pub price: i32,
     pub body: String,
-    pub access_level: String,
+    #[field(i32[level])]
+    pub access_level: i32,
 }
 
 impl Field<Wish, i32> for schema::wishes::price {}
+#[assoc(fn eval(v: Self, wish: Wish) -> int { wish.price })]
 impl Expr<Wish, i32> for schema::wishes::price {}
 
-impl Field<Wish, String> for schema::wishes::access_level {}
-impl Expr<Wish, String> for schema::wishes::access_level {}
+impl Field<Wish, i32> for schema::wishes::access_level {}
+#[assoc(fn eval(v: Self, wish: Wish) -> int { wish.level })]
+impl Expr<Wish, i32> for schema::wishes::access_level {}
 
 impl Field<Wish, i32> for schema::wishes::owner {}
+#[assoc(fn eval(v: Self, wish: Wish) -> int { wish.owner })]
 impl Expr<Wish, i32> for schema::wishes::owner {}
+
+#[sig(fn(bool[true]))]
+fn assert(_: bool) {}
 
 pub fn test1(conn: &mut diesel::pg::PgConnection) -> Vec<Wish> {
     use schema::wishes::dsl::*;
@@ -52,13 +64,7 @@ pub fn test1(conn: &mut diesel::pg::PgConnection) -> Vec<Wish> {
 pub fn test2(conn: &mut diesel::pg::PgConnection, owners: Vec<i32>) -> Vec<Wish> {
     use schema::wishes::dsl::*;
 
-    select_list(
-        conn,
-        access_level
-            .eq("public".to_string())
-            .or(owner.eq_any(owners)),
-    )
-    .unwrap()
+    select_list(conn, access_level.eq(0).or(owner.eq_any(owners))).unwrap()
 }
 
 pub fn test3(conn: &mut diesel::pg::PgConnection) {
@@ -70,8 +76,18 @@ pub fn test3(conn: &mut diesel::pg::PgConnection) {
     let _ = update_where(
         conn,
         price.gt(1000),
-        (access_level.assign("private".to_string()), price.assign(0)),
+        (access_level.assign(1), price.assign(0)),
     );
+}
+
+pub fn test4(conn: &mut diesel::pg::PgConnection, owner_id: i32) {
+    use schema::wishes::dsl::*;
+
+    let wish_list = select_list(conn, owner.eq(owner_id)).unwrap();
+
+    for wish in wish_list {
+        assert(wish.owner == owner_id);
+    }
 }
 
 fn main() {}
