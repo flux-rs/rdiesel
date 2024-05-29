@@ -1,9 +1,14 @@
 use diesel::{associations::Identifiable, Queryable, Selectable};
 use flux_rs::*;
-use rdiesel::{select_list, update_where, Expr, Field};
+use rdiesel::{select_list, update_where, AuthProvider, Context, Expr, Field};
 
 #[trusted]
 mod schema {
+    diesel::table! {
+        users (id) {
+            id -> Integer,
+        }
+    }
     diesel::table! {
         wishes (id) {
             id -> Integer,
@@ -23,6 +28,14 @@ mod schema {
             friend_status -> Varchar,
         }
     }
+}
+
+#[derive(Clone, Queryable, Selectable, Identifiable)]
+#[diesel(table_name = crate::schema::users)]
+#[refined_by(id: int)]
+pub struct User {
+    #[field(i32[id])]
+    pub id: i32,
 }
 
 #[derive(Queryable, Selectable, Identifiable)]
@@ -87,6 +100,30 @@ pub fn test4(conn: &mut diesel::pg::PgConnection, owner_id: i32) {
 
     for wish in wish_list {
         assert(wish.owner == owner_id);
+    }
+}
+
+impl AuthProvider for User {
+    type User = User;
+
+    fn authenticate(&self) -> Option<Self::User> {
+        Some(self.clone())
+    }
+}
+
+pub fn test5(conn: diesel::pg::PgConnection, user: User) {
+    use schema::wishes::dsl::*;
+
+    let mut cx = Context::new(conn, user);
+
+    let Some(auth_user) = cx.require_auth_user() else {
+        return;
+    };
+
+    let wish_list = cx.select_list(owner.eq(auth_user.id)).unwrap();
+
+    for wish in wish_list {
+        assert(wish.owner == auth_user.id);
     }
 }
 
