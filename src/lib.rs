@@ -78,7 +78,6 @@ where
         R::update_where(&mut self.conn, q, v)
     }
 }
-);
 
 #[generics(Self as base, R as base, V as base)]
 #[assoc(fn eval(expr: Self, row: R) -> V)]
@@ -87,8 +86,7 @@ where
     R: NoKvar,
     V: NoKvar,
 {
-    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Eq<V, Self, T>[lhs, rhs])]
-    fn eq<T>(self, rhs: T) -> Eq<V, Self, T> {
+    fn eq<T as base>(self: Self, rhs: T) -> Eq<V, Self, T>[self, rhs] {
         Eq {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -96,8 +94,7 @@ where
         }
     }
 
-    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Lt<V, Self, T>[lhs, rhs])]
-    fn lt<T>(self, rhs: T) -> Lt<V, Self, T> {
+    fn lt<T as base>(self: Self, rhs: T) -> Lt<V, Self, T>[self, rhs] {
         Lt {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -105,8 +102,7 @@ where
         }
     }
 
-    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Gt<V, Self, T>[lhs, rhs])]
-    fn gt<T>(self, rhs: T) -> Gt<V, Self, T> {
+    fn gt<T as base>(self: Self, rhs: T) -> Gt<V, Self, T>[self, rhs] {
         Gt {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -114,12 +110,11 @@ where
         }
     }
 
-    fn eq_any(self, rhs: Vec<V>) -> EqAny<V, Self> {
+    fn eq_any(self: Self, rhs: Vec<V>) -> EqAny<V, Self> {
         EqAny { lhs: self, rhs }
     }
 
-    #[sig(fn<T as base>(lhs: Self, rhs: T) -> And<Self, T>[lhs, rhs])]
-    fn and<T>(self, rhs: T) -> And<Self, T>
+    fn and<T as base>(self: Self, rhs: T) -> And<Self, T>[self, rhs]
     where
         Self: Expr<R, bool>,
         T: Expr<R, bool>,
@@ -127,8 +122,7 @@ where
         And { lhs: self, rhs }
     }
 
-    #[sig(fn<T as base>(lhs: Self, rhs: T) -> Or<Self, T>[lhs, rhs])]
-    fn or<T>(self, rhs: T) -> Or<Self, T>
+    fn or<T as base>(self: Self, rhs: T) -> Or<Self, T>[self, rhs]
     where
         Self: Expr<R, bool>,
         T: Expr<R, bool>,
@@ -136,6 +130,7 @@ where
         Or { lhs: self, rhs }
     }
 }
+);
 
 #[trusted]
 #[generics(R as base, U as base)]
