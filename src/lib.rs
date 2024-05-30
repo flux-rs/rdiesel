@@ -130,13 +130,12 @@ where
         Or { lhs: self, rhs }
     }
 }
-);
 
 #[trusted]
 #[generics(R as base, U as base)]
 #[assoc(fn policy(user: U, row: R) -> bool)]
 pub trait Field<R, V, U>: Sized {
-    fn assign(self, v: V) -> Assign<Self, V> {
+    fn assign(self: Self, v: V) -> Assign<Self, V> {
         Assign {
             field: self,
             val: v,
@@ -147,7 +146,6 @@ pub trait Field<R, V, U>: Sized {
 #[generics(R as base, U as base)]
 #[assoc(fn policy(user: U, row: R) -> bool)]
 pub trait Changeset<R, U> {}
-
 #[generics(R as base, U as base)]
 #[assoc(fn policy(user: U, row: R) -> bool { <F as Field<R, V, U>>::policy(user, row) })]
 impl<F, V, R, U> Changeset<R, U> for Assign<F, V> where F: Field<R, V, U> {}
@@ -163,8 +161,6 @@ where
 {
 }
 
-flux! (
-
 pub struct Assign<F, V> {
     field: F,
     val: V,
@@ -175,35 +171,6 @@ pub struct And<A, B>[lhs: A, rhs: B] {
     rhs: B[rhs],
 }
 
-pub struct Or<A, B>[lhs: A, rhs: B] {
-    lhs: A[lhs],
-    rhs: B[rhs],
-}
-
-pub struct Eq<V, A, B>[lhs: A, rhs: B] {
-    lhs: A[lhs],
-    rhs: B[rhs],
-    _val: std::marker::PhantomData<V>,
-}
-
-pub struct Gt<V, A, B>[lhs: A, rhs: B] {
-    lhs: A[lhs],
-    rhs: B[rhs],
-    _val: std::marker::PhantomData<V>,
-}
-
-pub struct Lt<V, A, B>[lhs: A, rhs: B] {
-    lhs: A[lhs],
-    rhs: B[rhs],
-    _val: std::marker::PhantomData<V>,
-}
-
-pub struct EqAny<V, T> {
-    lhs: T,
-    rhs: Vec<V>,
-}
-
-);
 
 #[generics(R as base, A as base, B as base)]
 #[assoc(
@@ -216,6 +183,11 @@ where
     A: Expr<R, bool>,
     B: Expr<R, bool>,
 {
+}
+
+pub struct Or<A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
 }
 
 #[generics(R as base, A as base, B as base)]
@@ -231,6 +203,12 @@ where
 {
 }
 
+pub struct Eq<V, A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
+    _val: std::marker::PhantomData<V>,
+}
+
 #[generics(R as base, A as base, B as base, V as base)]
 #[assoc(
     fn eval(expr: Eq<A, B>, row: R) -> bool {
@@ -242,6 +220,12 @@ where
     A: Expr<R, V>,
     B: Expr<R, V>,
 {
+}
+
+pub struct Gt<V, A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
+    _val: std::marker::PhantomData<V>,
 }
 
 #[generics(R as base, A as base, B as base, V as base)]
@@ -257,6 +241,12 @@ where
 {
 }
 
+pub struct Lt<V, A, B>[lhs: A, rhs: B] {
+    lhs: A[lhs],
+    rhs: B[rhs],
+    _val: std::marker::PhantomData<V>,
+}
+
 #[generics(R as base, A as base, B as base, V as base)]
 #[assoc(
     fn eval(expr: Lt<A, B>, row: R) -> bool {
@@ -268,6 +258,11 @@ where
     A: Expr<R, V>,
     B: Expr<R, V>,
 {
+}
+
+pub struct EqAny<V, T> {
+    lhs: T,
+    rhs: Vec<V>,
 }
 
 #[generics(R as base, T as base, V as base)]
@@ -283,6 +278,8 @@ impl<R> Expr<R, i32> for i32 {}
 impl<R> Expr<R, bool> for bool {}
 
 impl<R> Expr<R, String> for String {}
+
+);
 
 #[trusted]
 #[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
