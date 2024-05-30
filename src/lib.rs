@@ -14,9 +14,10 @@ pub trait AuthProvider {
     fn authenticate(&self) -> Option<Self::User>;
 }
 
+flux!(
+
 #[opaque]
-#[refined_by(user: U)]
-pub struct Context<Conn, A, U> {
+pub struct Context<Conn, A, U>[user: U] {
     _u: std::marker::PhantomData<U>,
     conn: Conn,
     auth: A,
@@ -38,16 +39,17 @@ where
         }
     }
 
-    #[sig(fn(&Self[@ctxt]) -> Option<U[ctxt.user]>)]
-    pub fn require_auth_user(&self) -> Option<U>
+    pub fn require_auth_user(self: &Self[@cx]) -> Option<U[cx.user]>
     where
         A: AuthProvider<User = U>,
     {
         self.auth.authenticate()
     }
 
-    #[sig(fn<R as base, Q as base>(&mut Self[@cx], q: Q) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
-    pub fn select_list<'query, R, Q>(&mut self, q: Q) -> QueryResult<Vec<R>>
+    pub fn select_list<'query, R as base, Q as base>(
+        self: &mut Self[@cx],
+        q: Q,
+    ) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>
     where
         Q: Expr<R, bool>,
         R: bridge::SelectList<'query, Conn, Q>,
@@ -55,8 +57,10 @@ where
         R::select_list(&mut self.conn, q)
     }
 
-    #[sig(fn<R as base, Q as base>(&mut Self[@cx], q: Q) -> QueryResult<Option<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
-    pub fn select_first<'query, R, Q>(&mut self, q: Q) -> QueryResult<Option<R>>
+    pub fn select_first<'query, R as base, Q as base>(
+        self: &mut Self[@cx],
+        q: Q,
+    ) -> QueryResult<Option<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>
     where
         Q: Expr<R, bool>,
         R: bridge::SelectFirst<'query, Conn, Q>,
@@ -64,19 +68,17 @@ where
         R::select_first(&mut self.conn, q)
     }
 
-    #[sig(
-        fn<R as base, Q as base>(&mut Self[@cx], q: Q, v: C) -> QueryResult<usize>
-        requires forall row. <Q as Expr<R, bool>>::eval(q, row) => <C as Changeset<R, U>>::policy(cx.user, row)
-    )]
-    pub fn update_where<R, Q, C>(&mut self, q: Q, v: C) -> QueryResult<usize>
+    pub fn update_where<R as base, Q as base, C>(self: &mut Self[@cx], q: Q, v: C) -> QueryResult<usize>
     where
         Q: Expr<R, bool>,
         C: Changeset<R, U>,
-        R: bridge::UpdateWhere<Conn, Q, C>,
+        R: bridge::UpdateWhere<Conn, Q, C>
+    requires forall row. <Q as Expr<R, bool>>::eval(q, row) => <C as Changeset<R, U>>::policy(cx.user, row)
     {
         R::update_where(&mut self.conn, q, v)
     }
 }
+);
 
 #[generics(Self as base, R as base, V as base)]
 #[assoc(fn eval(expr: Self, row: R) -> V)]
