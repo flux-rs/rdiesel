@@ -2,6 +2,12 @@ use diesel::QueryResult;
 use flux_rs::*;
 mod bridge;
 
+/// Dummy trait with a blanket implementation for every type that can be used as a bound to trick
+/// Flux into not generating a kvar when instantiating a type parameter.
+pub trait NoKvar {}
+
+impl<T> NoKvar for T {}
+
 pub trait AuthProvider {
     type User;
 
@@ -18,7 +24,12 @@ pub struct Context<Conn, A, U> {
 
 #[trusted]
 #[generics(U as base)]
-impl<Conn, A, U> Context<Conn, A, U> {
+impl<Conn, A, U> Context<Conn, A, U>
+where
+    Conn: NoKvar,
+    A: NoKvar,
+    U: NoKvar,
+{
     pub fn new(conn: Conn, auth: A) -> Self {
         Self {
             _u: std::marker::PhantomData,
@@ -35,7 +46,7 @@ impl<Conn, A, U> Context<Conn, A, U> {
         self.auth.authenticate()
     }
 
-    #[sig(fn<R as base, Q as base>(&mut Self, q: Q) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
+    #[sig(fn<R as base, Q as base>(&mut Self[@cx], q: Q) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
     pub fn select_list<'query, R, Q>(&mut self, q: Q) -> QueryResult<Vec<R>>
     where
         Q: Expr<R, bool>,
@@ -44,7 +55,7 @@ impl<Conn, A, U> Context<Conn, A, U> {
         R::select_list(&mut self.conn, q)
     }
 
-    #[sig(fn<R as base, Q as base>(&mut Self, q: Q) -> QueryResult<Option<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
+    #[sig(fn<R as base, Q as base>(&mut Self[@cx], q: Q) -> QueryResult<Option<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
     pub fn select_first<'query, R, Q>(&mut self, q: Q) -> QueryResult<Option<R>>
     where
         Q: Expr<R, bool>,
@@ -53,10 +64,14 @@ impl<Conn, A, U> Context<Conn, A, U> {
         R::select_first(&mut self.conn, q)
     }
 
-    #[sig(fn<R as base, Q as base>(&mut Self, q: Q, v: C) -> QueryResult<usize>)]
+    #[sig(
+        fn<R as base, Q as base>(&mut Self[@cx], q: Q, v: C) -> QueryResult<usize>
+        requires forall row. <Q as Expr<R, bool>>::eval(q, row) => <C as Changeset<R, U>>::policy(cx.user, row)
+    )]
     pub fn update_where<R, Q, C>(&mut self, q: Q, v: C) -> QueryResult<usize>
     where
         Q: Expr<R, bool>,
+        C: Changeset<R, U>,
         R: bridge::UpdateWhere<Conn, Q, C>,
     {
         R::update_where(&mut self.conn, q, v)
@@ -65,7 +80,11 @@ impl<Conn, A, U> Context<Conn, A, U> {
 
 #[generics(Self as base, R as base, V as base)]
 #[assoc(fn eval(expr: Self, row: R) -> V)]
-pub trait Expr<R, V>: Sized {
+pub trait Expr<R, V>: Sized
+where
+    R: NoKvar,
+    V: NoKvar,
+{
     #[sig(fn<T as base>(lhs: Self, rhs: T) -> Eq<V, Self, T>[lhs, rhs])]
     fn eq<T>(self, rhs: T) -> Eq<V, Self, T> {
         Eq {
@@ -116,7 +135,43 @@ pub trait Expr<R, V>: Sized {
     }
 }
 
+#[trusted]
+#[generics(R as base, U as base)]
+#[assoc(fn policy(user: U, row: R) -> bool)]
+pub trait Field<R, V, U>: Sized {
+    fn assign(self, v: V) -> Assign<Self, V> {
+        Assign {
+            field: self,
+            val: v,
+        }
+    }
+}
+
+#[generics(R as base, U as base)]
+#[assoc(fn policy(user: U, row: R) -> bool)]
+pub trait Changeset<R, U> {}
+
+#[generics(R as base, U as base)]
+#[assoc(fn policy(user: U, row: R) -> bool { <F as Field<R, V, U>>::policy(user, row) })]
+impl<F, V, R, U> Changeset<R, U> for Assign<F, V> where F: Field<R, V, U> {}
+
+#[generics(R as base, U as base)]
+#[assoc(fn policy(user: U, row: R) -> bool {
+    <A as Changeset<R, U>>::policy(user, row) && <B as Changeset<R, U>>::policy(user, row)
+})]
+impl<A, B, R, U> Changeset<R, U> for (A, B)
+where
+    A: Changeset<R, U>,
+    B: Changeset<R, U>,
+{
+}
+
 flux! (
+
+pub struct Assign<F, V> {
+    field: F,
+    val: V,
+}
 
 pub struct And<A, B>[lhs: A, rhs: B] {
     lhs: A[lhs],
@@ -231,20 +286,6 @@ impl<R> Expr<R, i32> for i32 {}
 impl<R> Expr<R, bool> for bool {}
 
 impl<R> Expr<R, String> for String {}
-
-pub struct Assign<Target, Expr> {
-    target: Target,
-    expr: Expr,
-}
-
-pub trait Field<R, V>: Expr<R, V> {
-    fn assign(self, v: V) -> Assign<Self, V> {
-        Assign {
-            target: self,
-            expr: v,
-        }
-    }
-}
 
 #[trusted]
 #[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]

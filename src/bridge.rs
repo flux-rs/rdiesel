@@ -187,7 +187,7 @@ const _: () = {
         type Changeset = <diesel::dsl::Eq<A, B> as AsChangeset>::Changeset;
 
         fn as_changeset(self) -> Self::Changeset {
-            diesel::ExpressionMethods::eq(self.target, self.expr).as_changeset()
+            diesel::ExpressionMethods::eq(self.field, self.val).as_changeset()
         }
     }
 };

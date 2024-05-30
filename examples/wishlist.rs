@@ -54,15 +54,35 @@ pub struct Wish {
     pub access_level: i32,
 }
 
-impl Field<Wish, i32> for schema::wishes::price {}
+// Wish.id
+
+#[assoc(fn policy(user: User, wish: Wish) -> bool { false })]
+impl Field<Wish, i32, User> for schema::wishes::id {}
+
+#[assoc(fn eval(v: Self, wish: Wish) -> int { wish.price })]
+impl Expr<Wish, i32> for schema::wishes::id {}
+
+// Wish.price
+
+#[assoc(fn policy(user: User, wish: Wish) -> bool { user.id == wish.owner })]
+impl Field<Wish, i32, User> for schema::wishes::price {}
+
 #[assoc(fn eval(v: Self, wish: Wish) -> int { wish.price })]
 impl Expr<Wish, i32> for schema::wishes::price {}
 
-impl Field<Wish, i32> for schema::wishes::access_level {}
+// Wish.access_level
+
+#[assoc(fn policy(user: User, wish: Wish) -> bool { user.id == wish.owner })]
+impl Field<Wish, i32, User> for schema::wishes::access_level {}
+
 #[assoc(fn eval(v: Self, wish: Wish) -> int { wish.level })]
 impl Expr<Wish, i32> for schema::wishes::access_level {}
 
-impl Field<Wish, i32> for schema::wishes::owner {}
+// Wish.owner
+
+#[assoc(fn policy(user: User, wish: Wish) -> bool { false })]
+impl Field<Wish, i32, User> for schema::wishes::owner {}
+
 #[assoc(fn eval(v: Self, wish: Wish) -> int { wish.owner })]
 impl Expr<Wish, i32> for schema::wishes::owner {}
 
@@ -103,18 +123,18 @@ pub fn test4(conn: &mut diesel::pg::PgConnection, owner_id: i32) {
     }
 }
 
-impl AuthProvider for User {
+impl AuthProvider for &User {
     type User = User;
 
     fn authenticate(&self) -> Option<Self::User> {
-        Some(self.clone())
+        Some((*self).clone())
     }
 }
 
 pub fn test5(conn: diesel::pg::PgConnection, user: User) {
     use schema::wishes::dsl::*;
 
-    let mut cx = Context::new(conn, user);
+    let mut cx = Context::new(conn, &user);
 
     let Some(auth_user) = cx.require_auth_user() else {
         return;
@@ -125,6 +145,19 @@ pub fn test5(conn: diesel::pg::PgConnection, user: User) {
     for wish in wish_list {
         assert(wish.owner == auth_user.id);
     }
+}
+
+pub fn test6(conn: diesel::PgConnection, user: User) {
+    use schema::wishes::dsl::*;
+
+    let mut cx = Context::new(conn, &user);
+
+    let Some(auth_user) = cx.require_auth_user() else {
+        return;
+    };
+
+    cx.update_where(owner.eq(auth_user.id), access_level.assign(1))
+        .unwrap();
 }
 
 fn main() {}
