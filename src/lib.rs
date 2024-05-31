@@ -80,12 +80,13 @@ where
 }
 
 #[generics(Self as base, R as base, V as base)]
-#[assoc(fn eval(expr: Self, row: R) -> V)]
 pub trait Expr<R, V>: Sized
 where
     R: NoKvar,
     V: NoKvar,
 {
+    reft eval(expr: Self, row: R) -> V;
+
     fn eq<T as base>(self: Self, rhs: T) -> Eq<V, Self, T>[self, rhs] {
         Eq {
             _val: std::marker::PhantomData,
@@ -133,8 +134,9 @@ where
 
 #[trusted]
 #[generics(R as base, U as base)]
-#[assoc(fn policy(user: U, row: R) -> bool)]
 pub trait Field<R, V, U>: Sized {
+    reft policy(user: U, row: R) -> bool;
+
     fn assign(self: Self, v: V) -> Assign<Self, V> {
         Assign {
             field: self,
@@ -143,22 +145,28 @@ pub trait Field<R, V, U>: Sized {
     }
 }
 
-#[generics(R as base, U as base)]
-#[assoc(fn policy(user: U, row: R) -> bool)]
-pub trait Changeset<R, U> {}
-#[generics(R as base, U as base)]
-#[assoc(fn policy(user: U, row: R) -> bool { <F as Field<R, V, U>>::policy(user, row) })]
-impl<F, V, R, U> Changeset<R, U> for Assign<F, V> where F: Field<R, V, U> {}
 
 #[generics(R as base, U as base)]
-#[assoc(fn policy(user: U, row: R) -> bool {
-    <A as Changeset<R, U>>::policy(user, row) && <B as Changeset<R, U>>::policy(user, row)
-})]
+pub trait Changeset<R, U> {
+    reft policy(user: U, row: R) -> bool;
+}
+
+#[generics(R as base, U as base)]
+impl<F, V, R, U> Changeset<R, U> for Assign<F, V> where F: Field<R, V, U> {
+    reft policy(user: U, row: R) -> bool {
+        <F as Field<R, V, U>>::policy(user, row)
+    }
+}
+
+#[generics(R as base, U as base)]
 impl<A, B, R, U> Changeset<R, U> for (A, B)
 where
     A: Changeset<R, U>,
     B: Changeset<R, U>,
 {
+    reft policy(user: U, row: R) -> bool {
+        <A as Changeset<R, U>>::policy(user, row) && <B as Changeset<R, U>>::policy(user, row)
+    }
 }
 
 pub struct Assign<F, V> {
@@ -173,16 +181,14 @@ pub struct And<A, B>[lhs: A, rhs: B] {
 
 
 #[generics(R as base, A as base, B as base)]
-#[assoc(
-    fn eval(expr: And<A, B>, row: R) -> bool {
-        <A as Expr<R, bool>>::eval(expr.lhs, row) && <B as Expr<R, bool>>::eval(expr.rhs, row)
-    }
-)]
 impl<R, A, B> Expr<R, bool> for And<A, B>
 where
     A: Expr<R, bool>,
     B: Expr<R, bool>,
 {
+    reft eval(expr: And<A, B>, row: R) -> bool {
+        <A as Expr<R, bool>>::eval(expr.lhs, row) && <B as Expr<R, bool>>::eval(expr.rhs, row)
+    }
 }
 
 pub struct Or<A, B>[lhs: A, rhs: B] {
@@ -191,16 +197,15 @@ pub struct Or<A, B>[lhs: A, rhs: B] {
 }
 
 #[generics(R as base, A as base, B as base)]
-#[assoc(
-    fn eval(expr: Or<A, B>, row: R) -> bool {
-        <A as Expr<R, bool>>::eval(expr.lhs, row) || <B as Expr<R, bool>>::eval(expr.rhs, row)
-    }
-)]
 impl<R, A, B> Expr<R, bool> for Or<A, B>
 where
     A: Expr<R, bool>,
     B: Expr<R, bool>,
 {
+    reft eval(expr: Or<A, B>, row: R) -> bool {
+        <A as Expr<R, bool>>::eval(expr.lhs, row) || <B as Expr<R, bool>>::eval(expr.rhs, row)
+    }
+
 }
 
 pub struct Eq<V, A, B>[lhs: A, rhs: B] {
@@ -210,16 +215,15 @@ pub struct Eq<V, A, B>[lhs: A, rhs: B] {
 }
 
 #[generics(R as base, A as base, B as base, V as base)]
-#[assoc(
-    fn eval(expr: Eq<A, B>, row: R) -> bool {
-        <A as Expr<R, V>>::eval(expr.lhs, row) == <B as Expr<R, V>>::eval(expr.rhs, row)
-    }
-)]
 impl<R, A, B, V> Expr<R, bool> for Eq<V, A, B>
 where
     A: Expr<R, V>,
     B: Expr<R, V>,
 {
+    reft eval(expr: Eq<A, B>, row: R) -> bool {
+        <A as Expr<R, V>>::eval(expr.lhs, row) == <B as Expr<R, V>>::eval(expr.rhs, row)
+    }
+
 }
 
 pub struct Gt<V, A, B>[lhs: A, rhs: B] {
@@ -229,16 +233,15 @@ pub struct Gt<V, A, B>[lhs: A, rhs: B] {
 }
 
 #[generics(R as base, A as base, B as base, V as base)]
-#[assoc(
-    fn eval(expr: Gt<A, B>, row: R) -> bool {
-        <A as Expr<R, V>>::eval(expr.lhs, row) > <B as Expr<R, V>>::eval(expr.rhs, row)
-    }
-)]
 impl<R, A, B, V> Expr<R, bool> for Gt<V, A, B>
 where
     A: Expr<R, V>,
     B: Expr<R, V>,
 {
+    reft eval(expr: Gt<A, B>, row: R) -> bool {
+        <A as Expr<R, V>>::eval(expr.lhs, row) > <B as Expr<R, V>>::eval(expr.rhs, row)
+    }
+
 }
 
 pub struct Lt<V, A, B>[lhs: A, rhs: B] {
@@ -248,16 +251,14 @@ pub struct Lt<V, A, B>[lhs: A, rhs: B] {
 }
 
 #[generics(R as base, A as base, B as base, V as base)]
-#[assoc(
-    fn eval(expr: Lt<A, B>, row: R) -> bool {
-        <A as Expr<R, V>>::eval(expr.lhs, row) < <B as Expr<R, V>>::eval(expr.rhs, row)
-    }
-)]
 impl<R, A, B, V> Expr<R, bool> for Lt<V, A, B>
 where
     A: Expr<R, V>,
     B: Expr<R, V>,
 {
+    reft eval(expr: Lt<A, B>, row: R) -> bool {
+        <A as Expr<R, V>>::eval(expr.lhs, row) < <B as Expr<R, V>>::eval(expr.rhs, row)
+    }
 }
 
 pub struct EqAny<V, T> {
@@ -266,16 +267,19 @@ pub struct EqAny<V, T> {
 }
 
 #[generics(R as base, T as base, V as base)]
-#[assoc(fn eval(expr: EqAny, row: R) -> bool { true })]
-impl<R, T, V> Expr<R, bool> for EqAny<V, T> where T: Expr<R, V> {}
+impl<R, T, V> Expr<R, bool> for EqAny<V, T> where T: Expr<R, V> {
+    reft eval(expr: EqAny, row: R) -> bool { true }
+}
 
 #[generics(R as base)]
-#[assoc(fn eval(val: Self, row: R) -> int { val })]
-impl<R> Expr<R, i32> for i32 {}
+impl<R> Expr<R, i32> for i32 {
+    reft eval(val: Self, row: R) -> int { val }
+}
 
 #[generics(R as base)]
-#[assoc(fn eval(val: Self, row: R) -> bool { val })]
-impl<R> Expr<R, bool> for bool {}
+impl<R> Expr<R, bool> for bool {
+    reft eval(val: Self, row: R) -> bool { val }
+}
 
 impl<R> Expr<R, String> for String {}
 
