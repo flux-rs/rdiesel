@@ -18,6 +18,8 @@ mod schema {
     diesel::table! {
         users (id) {
             id -> Integer,
+            username -> VarChar,
+            password -> VarChar,
         }
     }
     diesel::table! {
@@ -43,15 +45,16 @@ mod schema {
 
 mod models {
     use crate::schema;
-    use diesel::{associations::Identifiable, Queryable, Selectable};
+    use diesel::{associations::Identifiable, Insertable, Queryable, Selectable};
     use flux_rs::*;
-    use rdiesel::{Expr, Field};
 
     flux!(
     #[derive(Clone, Queryable, Selectable, Identifiable)]
     #[diesel(table_name = crate::schema::users)]
     pub struct User[id: int] {
         pub id: i32[id],
+        pub username: String,
+        pub password: String,
     }
 
     #[derive(Queryable, Selectable, Identifiable)]
@@ -65,43 +68,53 @@ mod models {
         pub access_level: i32[level],
     }
 
+    #[derive(Clone, Insertable)]
+    #[diesel(table_name = crate::schema::wishes)]
+    pub struct WishInsert[owner: int, price: int, level: int] {
+        pub owner: i32[owner],
+        pub title: String,
+        pub price: i32[price],
+        pub body: String,
+        pub access_level: i32[level],
+    }
+
     // Wish.id
 
-    impl Field<Wish, i32, User> for schema::wishes::id {
+    impl rdiesel::Field<Wish, i32, User> for schema::wishes::id {
         reft allow_update(user: User, wish: Wish) -> bool { false }
     }
 
-    impl Expr<Wish, i32> for schema::wishes::id {
+    impl rdiesel::Expr<Wish, i32> for schema::wishes::id {
         reft eval(v: Self, wish: Wish) -> int { wish.price }
     }
 
     // Wish.price
 
-    impl Field<Wish, i32, User> for schema::wishes::price {
+    impl rdiesel::Field<Wish, i32, User> for schema::wishes::price {
         reft allow_update(user: User, wish: Wish) -> bool { user.id == wish.owner }
     }
 
-    impl Expr<Wish, i32> for schema::wishes::price {
+    impl rdiesel::Expr<Wish, i32> for schema::wishes::price {
         reft eval(v: Self, wish: Wish) -> int { wish.price }
     }
 
     // Wish.access_level
 
-    impl Field<Wish, i32, User> for schema::wishes::access_level {
+    impl rdiesel::Field<Wish, i32, User> for schema::wishes::access_level {
         reft allow_update(user: User, wish: Wish) -> bool { user.id == wish.owner }
     }
 
-    impl Expr<Wish, i32> for schema::wishes::access_level {
+    impl rdiesel::Expr<Wish, i32> for schema::wishes::access_level {
         reft eval(v: Self, wish: Wish) -> int { wish.level }
     }
 
     // Wish.owner
 
-    impl Field<Wish, i32, User> for schema::wishes::owner {
+    impl rdiesel::Field<Wish, i32, User> for schema::wishes::owner {
         reft allow_update(user: User, wish: Wish) -> bool { false }
     }
 
-    impl Expr<Wish, i32> for schema::wishes::owner {
+    impl rdiesel::Expr<Wish, i32> for schema::wishes::owner {
         reft eval(v: Self, wish: Wish) -> int { wish.owner }
     }
 
@@ -116,44 +129,52 @@ mod models {
 
     // Friendship.id
 
-    impl Field<Friendship, i32, User> for schema::friendships::id {
+    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::id {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 
-    impl Expr<Friendship, i32> for schema::friendships::id {
+    impl rdiesel::Expr<Friendship, i32> for schema::friendships::id {
         reft eval(v: Self, f: Friendship) -> int { f.id }
     }
 
     // Friendship.user1
 
-    impl Field<Friendship, i32, User> for schema::friendships::user1 {
+    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::user1 {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 
-    impl Expr<Friendship, i32> for schema::friendships::user1 {
+    impl rdiesel::Expr<Friendship, i32> for schema::friendships::user1 {
         reft eval(v: Self, f: Friendship) -> int { f.user1 }
     }
 
     // Friendship.user2
 
-    impl Field<Friendship, i32, User> for schema::friendships::user2 {
+    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::user2 {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 
-    impl Expr<Friendship, i32> for schema::friendships::user2 {
+    impl rdiesel::Expr<Friendship, i32> for schema::friendships::user2 {
         reft eval(v: Self, f: Friendship) -> int { f.user2 }
     }
 
     // Friendship.status
 
-    impl Field<Friendship, i32, User> for schema::friendships::status {
+    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::status {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 
-    impl Expr<Friendship, i32> for schema::friendships::status {
+    impl rdiesel::Expr<Friendship, i32> for schema::friendships::status {
         reft eval(v: Self, f: Friendship) -> int { f.status }
     }
     );
+
+    impl diesel::associations::HasTable for WishInsert {
+        type Table = crate::schema::wishes::table;
+
+        fn table() -> Self::Table {
+            crate::schema::wishes::table
+        }
+    }
 }
 
 struct Session {
@@ -218,17 +239,14 @@ const _: () = {
 };
 
 mod services {
-    use crate::{
-        schema::{friendships, wishes},
-        Session, FRIENDS, PUBLIC,
-    };
+    use crate::{models::WishInsert, schema::*, Session, FRIENDS, PUBLIC};
     use flux_rs::*;
     use rdiesel::Expr;
 
     #[sig(fn(bool[true]))]
     fn assert(_: bool) {}
 
-    #[rocket::get("/<user_id>")]
+    #[rocket::get("/user/<user_id>")]
     pub fn user_show(sess: Session, user_id: i32) {
         let mut cx = sess.into_context();
 
@@ -270,6 +288,23 @@ mod services {
             assert(w.owner == user_id);
         }
     }
+
+    #[rocket::put("/wish")]
+    pub fn new_wish(sess: Session) {
+        let mut cx = sess.into_context();
+
+        let auth_user = cx.auth_user();
+
+        let wish = WishInsert {
+            owner: auth_user.id,
+            title: "New wish".to_string(),
+            price: 100,
+            body: "I want this".to_string(),
+            access_level: PUBLIC,
+        };
+
+        let _ = cx.insert(wish);
+    }
 }
 
 #[flux_rs::ignore]
@@ -277,6 +312,7 @@ fn main() {
     let _ = rocket::async_main(
         rocket::build()
             .mount("/", routes![services::user_show])
+            .mount("/", routes![services::new_wish])
             .attach(Template::fairing())
             .launch(),
     );

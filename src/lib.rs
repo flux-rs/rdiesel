@@ -74,6 +74,13 @@ where
     {
         R::update_where(self.inner.conn(), q, v)
     }
+
+    pub fn insert<R as base>(self: &mut Self[@cx], v: R) -> QueryResult<usize>
+    where
+        R: bridge::Insert<T::Conn>
+    {
+        R::insert(self.inner.conn(), v)
+    }
 }
 
 #[generics(Self as base, R as base, V as base)]

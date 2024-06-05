@@ -2,11 +2,11 @@ use diesel::{
     associations::HasTable,
     dsl::Limit,
     expression::AsExpression,
-    query_builder::{AsQuery, IntoUpdateTarget, UpdateStatement},
+    query_builder::{AsQuery, InsertStatement, IntoUpdateTarget, UpdateStatement},
     query_dsl::methods::{ExecuteDsl, FilterDsl, LimitDsl, LoadQuery},
     sql_types::{Bool, SingleValue, SqlType},
     AppearsOnTable, AsChangeset, BoolExpressionMethods as _, Column, Connection, Expression,
-    ExpressionMethods as _, OptionalExtension, QueryResult, RunQueryDsl,
+    ExpressionMethods as _, Insertable, OptionalExtension, QueryResult, RunQueryDsl,
 };
 
 use crate::{And, Assign, Eq, EqAny, Gt, Lt, Or};
@@ -27,6 +27,10 @@ pub trait SelectFirst<'query, Conn, Q>: Sized {
 
 pub trait UpdateWhere<Conn, Q, C> {
     fn update_where(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>;
+}
+
+pub trait Insert<Conn> {
+    fn insert(conn: &mut Conn, v: Self) -> QueryResult<usize>;
 }
 
 #[flux_rs::ignore]
@@ -79,6 +83,18 @@ const _: () = {
         fn update_where(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize> {
             let filter = diesel::QueryDsl::filter(R::table(), q.to_diesel());
             diesel::update(filter).set(v).execute(conn)
+        }
+    }
+
+    impl<Conn, R> Insert<Conn> for R
+    where
+        R: HasTable,
+        R: Insertable<R::Table>,
+        Conn: diesel::Connection,
+        InsertStatement<R::Table, R::Values>: ExecuteDsl<Conn>,
+    {
+        fn insert(conn: &mut Conn, v: Self) -> QueryResult<usize> {
+            diesel::insert_into(R::table()).values(v).execute(conn)
         }
     }
 
