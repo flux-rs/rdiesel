@@ -2,48 +2,45 @@ use diesel::QueryResult;
 use flux_rs::*;
 mod bridge;
 
-/// Dummy trait with a blanket implementation for every type that can be used as a bound to trick
-/// Flux into not generating a kvar when instantiating a type parameter.
+/// Dummy trait implemented for every type that can be used as a bound to trick Flux into not
+/// generating a kvar when instantiating a type parameter.
 pub trait NoKvar {}
 
 impl<T> NoKvar for T {}
 
-pub trait AuthProvider {
+pub trait ContextImpl {
     type User;
+    type Conn;
 
-    fn authenticate(&self) -> Option<Self::User>;
+    fn auth_user(&self) -> Self::User;
+
+    fn conn(self: &mut Self) -> &mut Self::Conn;
 }
 
 flux!(
 
 #[opaque]
-pub struct Context<Conn, A, U>[user: U] {
+pub struct Context<T, U>[user: U] {
     _u: std::marker::PhantomData<U>,
-    conn: Conn,
-    auth: A,
+    inner: T,
 }
 
 #[trusted]
 #[generics(U as base)]
-impl<Conn, A, U> Context<Conn, A, U>
+impl<T, U> Context<T, U>
 where
-    Conn: NoKvar,
-    A: NoKvar,
+    T: ContextImpl<User = U>,
     U: NoKvar,
 {
-    pub fn new(conn: Conn, auth: A) -> Self {
+    pub fn new(inner: T) -> Self {
         Self {
             _u: std::marker::PhantomData,
-            conn,
-            auth,
+            inner,
         }
     }
 
-    pub fn require_auth_user(self: &Self[@cx]) -> Option<U[cx.user]>
-    where
-        A: AuthProvider<User = U>,
-    {
-        self.auth.authenticate()
+    pub fn auth_user(self: &Self[@cx]) -> U[cx.user] {
+        self.inner.auth_user()
     }
 
     pub fn select_list<'query, R as base, Q as base>(
@@ -52,9 +49,9 @@ where
     ) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>
     where
         Q: Expr<R, bool>,
-        R: bridge::SelectList<'query, Conn, Q>,
+        R: bridge::SelectList<'query, T::Conn, Q>,
     {
-        R::select_list(&mut self.conn, q)
+        R::select_list(self.inner.conn(), q)
     }
 
     pub fn select_first<'query, R as base, Q as base>(
@@ -63,19 +60,19 @@ where
     ) -> QueryResult<Option<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>
     where
         Q: Expr<R, bool>,
-        R: bridge::SelectFirst<'query, Conn, Q>,
+        R: bridge::SelectFirst<'query, T::Conn, Q>,
     {
-        R::select_first(&mut self.conn, q)
+        R::select_first(self.inner.conn(), q)
     }
 
     pub fn update_where<R as base, Q as base, C>(self: &mut Self[@cx], q: Q, v: C) -> QueryResult<usize>
     where
         Q: Expr<R, bool>,
         C: Changeset<R, U>,
-        R: bridge::UpdateWhere<Conn, Q, C>
+        R: bridge::UpdateWhere<T::Conn, Q, C>
     requires forall row. <Q as Expr<R, bool>>::eval(q, row) => <C as Changeset<R, U>>::policy(cx.user, row)
     {
-        R::update_where(&mut self.conn, q, v)
+        R::update_where(self.inner.conn(), q, v)
     }
 }
 
@@ -87,7 +84,10 @@ where
 {
     reft eval(expr: Self, row: R) -> V;
 
-    fn eq<T as base>(self: Self, rhs: T) -> Eq<V, Self, T>[self, rhs] {
+    fn eq<T as base>(self: Self, rhs: T) -> Eq<V, Self, T>[self, rhs]
+    where
+        T: NoKvar
+    {
         Eq {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -95,7 +95,10 @@ where
         }
     }
 
-    fn lt<T as base>(self: Self, rhs: T) -> Lt<V, Self, T>[self, rhs] {
+    fn lt<T as base>(self: Self, rhs: T) -> Lt<V, Self, T>[self, rhs]
+    where
+        T: NoKvar
+    {
         Lt {
             _val: std::marker::PhantomData,
             lhs: self,
@@ -103,7 +106,10 @@ where
         }
     }
 
-    fn gt<T as base>(self: Self, rhs: T) -> Gt<V, Self, T>[self, rhs] {
+    fn gt<T as base>(self: Self, rhs: T) -> Gt<V, Self, T>[self, rhs]
+    where
+        T: NoKvar
+    {
         Gt {
             _val: std::marker::PhantomData,
             lhs: self,

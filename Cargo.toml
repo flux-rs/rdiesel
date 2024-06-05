@@ -11,6 +11,14 @@ flux-rs = { git = "https://github.com/flux-rs/flux" }
 
 [dev-dependencies]
 diesel = { version = "2.1.5", features = ["postgres"] }
+rocket = { version = "0.5.1", features = ["json"] }
+rocket_dyn_templates = "0.2.0"
+
+[dev-dependencies.rocket_sync_db_pools]
+default-features = false
+features = ["diesel_postgres_pool"]
+version = "0.1.0"
+
 
 [package.metadata.flux]
 enabled = true
