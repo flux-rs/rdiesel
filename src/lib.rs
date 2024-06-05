@@ -70,7 +70,7 @@ where
         Q: Expr<R, bool>,
         C: Changeset<R, U>,
         R: bridge::UpdateWhere<T::Conn, Q, C>
-    requires forall row. <Q as Expr<R, bool>>::eval(q, row) => <C as Changeset<R, U>>::policy(cx.user, row)
+    requires forall row. <Q as Expr<R, bool>>::eval(q, row) => <C as Changeset<R, U>>::allow_update(cx.user, row)
     {
         R::update_where(self.inner.conn(), q, v)
     }
@@ -141,7 +141,7 @@ where
 #[trusted]
 #[generics(R as base, U as base)]
 pub trait Field<R, V, U>: Sized {
-    reft policy(user: U, row: R) -> bool;
+    reft allow_update(user: U, row: R) -> bool;
 
     fn assign(self: Self, v: V) -> Assign<Self, V> {
         Assign {
@@ -154,13 +154,13 @@ pub trait Field<R, V, U>: Sized {
 
 #[generics(R as base, U as base)]
 pub trait Changeset<R, U> {
-    reft policy(user: U, row: R) -> bool;
+    reft allow_update(user: U, row: R) -> bool;
 }
 
 #[generics(R as base, U as base)]
 impl<F, V, R, U> Changeset<R, U> for Assign<F, V> where F: Field<R, V, U> {
-    reft policy(user: U, row: R) -> bool {
-        <F as Field<R, V, U>>::policy(user, row)
+    reft allow_update(user: U, row: R) -> bool {
+        <F as Field<R, V, U>>::allow_update(user, row)
     }
 }
 
@@ -170,8 +170,8 @@ where
     A: Changeset<R, U>,
     B: Changeset<R, U>,
 {
-    reft policy(user: U, row: R) -> bool {
-        <A as Changeset<R, U>>::policy(user, row) && <B as Changeset<R, U>>::policy(user, row)
+    reft allow_update(user: U, row: R) -> bool {
+        <A as Changeset<R, U>>::allow_update(user, row) && <B as Changeset<R, U>>::allow_update(user, row)
     }
 }
 
