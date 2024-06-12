@@ -81,7 +81,9 @@ mod models {
     // Wish.id
 
     impl rdiesel::Field<Wish, i32, User> for schema::wishes::id {
-        reft allow_update(user: User, wish: Wish) -> bool { false }
+        reft allow_update(user: User, wish: Wish) -> bool { 
+            false 
+        }
     }
 
     impl rdiesel::Expr<Wish, i32> for schema::wishes::id {

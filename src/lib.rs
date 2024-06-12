@@ -297,33 +297,3 @@ impl<R> Expr<R, bool> for bool {
 impl<R> Expr<R, String> for String {}
 
 );
-
-#[trusted]
-#[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
-pub fn select_list<'query, Conn, R, Q>(conn: &mut Conn, q: Q) -> QueryResult<Vec<R>>
-where
-    Q: Expr<R, bool>,
-    R: bridge::SelectList<'query, Conn, Q>,
-{
-    R::select_list(conn, q)
-}
-
-#[trusted]
-#[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q) -> QueryResult<Option<R{row: <Q as Expr<R, bool>>::eval(q, row)}>>)]
-pub fn select_first<'query, Conn, R, Q>(conn: &mut Conn, q: Q) -> QueryResult<Option<R>>
-where
-    Q: Expr<R, bool>,
-    R: bridge::SelectFirst<'query, Conn, Q>,
-{
-    R::select_first(conn, q)
-}
-
-#[trusted]
-#[sig(fn<R as base, Q as base>(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>)]
-pub fn update_where<Conn, R, Q, C>(conn: &mut Conn, q: Q, v: C) -> QueryResult<usize>
-where
-    Q: Expr<R, bool>,
-    R: bridge::UpdateWhere<Conn, Q, C>,
-{
-    R::update_where(conn, q, v)
-}
