@@ -22,3 +22,6 @@ version = "0.1.0"
 
 [package.metadata.flux]
 enabled = true
+
+[profile.dev.package.flux-attrs]
+opt-level = 3
