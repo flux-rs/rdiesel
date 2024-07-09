@@ -59,6 +59,7 @@ mod models {
 
     #[derive(Queryable, Selectable, Identifiable)]
     #[diesel(table_name = crate::schema::wishes)]
+    // #[invariant(w == getJust(w.id).level)]
     pub struct Wish[id: int, owner: int, price: int, level: int] {
         pub id: i32[id],
         pub owner: i32[owner],
@@ -81,8 +82,8 @@ mod models {
     // Wish.id
 
     impl rdiesel::Field<Wish, i32, User> for schema::wishes::id {
-        reft allow_update(user: User, wish: Wish) -> bool { 
-            false 
+        reft allow_update(user: User, wish: Wish) -> bool {
+            false
         }
     }
 
@@ -118,6 +119,12 @@ mod models {
 
     impl rdiesel::Expr<Wish, i32> for schema::wishes::owner {
         reft eval(v: Self, wish: Wish) -> int { wish.owner }
+    }
+
+    // Wish.body
+
+    impl rdiesel::Field<Wish, String, User> for schema::wishes::body {
+        reft allow_update(user: User, wish: Wish) -> bool { user.id == wish.owner }
     }
 
     #[derive(Queryable, Selectable, Identifiable)]
@@ -179,7 +186,7 @@ mod models {
     }
 }
 
-struct Session {
+pub struct Session {
     conn: diesel::pg::PgConnection,
     user: models::User,
 }
@@ -240,13 +247,28 @@ const _: () = {
     }
 };
 
-mod services {
-    use crate::{models::WishInsert, schema::*, Session, FRIENDS, PUBLIC};
+pub mod services {
+    use crate::{
+        models::{Wish, WishInsert},
+        schema::*,
+        Session, FRIENDS, PUBLIC,
+    };
     use flux_rs::*;
-    use rdiesel::Expr;
+    use rdiesel::{Expr, Field};
 
     #[sig(fn(bool[true]))]
     fn assert(_: bool) {}
+
+    pub fn update_description(sess: Session, wish_id: i32, new_description: String) {
+        let mut cx = sess.into_context();
+
+        let auth_user = cx.auth_user();
+        cx.update_where(
+            wishes::id.eq(wish_id).and(wishes::owner.eq(auth_user.id)),
+            wishes::body.assign(new_description),
+        )
+        .unwrap();
+    }
 
     #[rocket::get("/user/<user_id>")]
     pub fn user_show(sess: Session, user_id: i32) {
@@ -289,6 +311,11 @@ mod services {
         for w in wishes {
             assert(w.owner == user_id);
         }
+    }
+
+    pub fn foo(sess: Session) {
+        let mut cx = sess.into_context();
+        let wishes: Vec<Wish> = cx.select_list(true).unwrap();
     }
 
     #[rocket::put("/wish")]

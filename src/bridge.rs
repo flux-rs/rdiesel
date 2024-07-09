@@ -178,6 +178,18 @@ const _: () = {
         }
     }
 
+    impl ToDiesel for bool {
+        type DieselType = diesel::expression::SqlLiteral<Bool>;
+
+        fn to_diesel(self) -> Self::DieselType {
+            if self {
+                diesel::dsl::sql::<Bool>("1 = 1")
+            } else {
+                diesel::dsl::sql::<Bool>("1 = 2")
+            }
+        }
+    }
+
     // impl<Target, Expr> ToDiesel for Assign<Target, Expr>
     // where
     //     Target: Column,
