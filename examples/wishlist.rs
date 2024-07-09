@@ -85,7 +85,7 @@ mod models {
 
     // Wish.id
 
-    impl rdiesel::Field<Wish, i32, User> for schema::wishes::id {
+    impl rdiesel::Field<Wish, User> for schema::wishes::id {
         reft allow_update(user: User, wish: Wish) -> bool {
             false
         }
@@ -97,7 +97,7 @@ mod models {
 
     // Wish.price
 
-    impl rdiesel::Field<Wish, i32, User> for schema::wishes::price {
+    impl rdiesel::Field<Wish, User> for schema::wishes::price {
         reft allow_update(user: User, wish: Wish) -> bool { user.id == wish.owner }
     }
 
@@ -107,7 +107,7 @@ mod models {
 
     // Wish.access_level
 
-    impl rdiesel::Field<Wish, i32, User> for schema::wishes::access_level {
+    impl rdiesel::Field<Wish, User> for schema::wishes::access_level {
         reft allow_update(user: User, wish: Wish) -> bool { user.id == wish.owner }
     }
 
@@ -117,7 +117,7 @@ mod models {
 
     // Wish.owner
 
-    impl rdiesel::Field<Wish, i32, User> for schema::wishes::owner {
+    impl rdiesel::Field<Wish, User> for schema::wishes::owner {
         reft allow_update(user: User, wish: Wish) -> bool { false }
     }
 
@@ -127,7 +127,7 @@ mod models {
 
     // Wish.body
 
-    impl rdiesel::Field<Wish, String, User> for schema::wishes::body {
+    impl rdiesel::Field<Wish, User> for schema::wishes::body {
         reft allow_update(user: User, wish: Wish) -> bool { user.id == wish.owner }
     }
 
@@ -142,7 +142,7 @@ mod models {
 
     // Friendship.id
 
-    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::id {
+    impl rdiesel::Field<Friendship, User> for schema::friendships::id {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 
@@ -152,7 +152,7 @@ mod models {
 
     // Friendship.user1
 
-    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::user1 {
+    impl rdiesel::Field<Friendship, User> for schema::friendships::user1 {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 
@@ -162,7 +162,7 @@ mod models {
 
     // Friendship.user2
 
-    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::user2 {
+    impl rdiesel::Field<Friendship, User> for schema::friendships::user2 {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 
@@ -172,7 +172,7 @@ mod models {
 
     // Friendship.status
 
-    impl rdiesel::Field<Friendship, i32, User> for schema::friendships::status {
+    impl rdiesel::Field<Friendship, User> for schema::friendships::status {
         reft allow_update(user: User, f: Friendship) -> bool { false }
     }
 

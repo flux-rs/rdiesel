@@ -153,10 +153,10 @@ where
 
 #[trusted]
 #[generics(R as base, U as base)]
-pub trait Field<R, V, U>: Sized {
+pub trait Field<R, U>: Sized {
     reft allow_update(user: U, row: R) -> bool;
 
-    fn assign(self: Self, v: V) -> Assign<Self, V> {
+    fn assign<V as base>(self: Self, v: V) -> Assign<Self, V> {
         Assign {
             field: self,
             val: v,
@@ -171,9 +171,9 @@ pub trait Changeset<R, U> {
 }
 
 #[generics(R as base, U as base)]
-impl<F, V, R, U> Changeset<R, U> for Assign<F, V> where F: Field<R, V, U> {
+impl<F, V, R, U> Changeset<R, U> for Assign<F, V> where F: Field<R, U> {
     reft allow_update(user: U, row: R) -> bool {
-        <F as Field<R, V, U>>::allow_update(user, row)
+        <F as Field<R, U>>::allow_update(user, row)
     }
 }
 
