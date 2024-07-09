@@ -190,19 +190,6 @@ const _: () = {
         }
     }
 
-    // impl<Target, Expr> ToDiesel for Assign<Target, Expr>
-    // where
-    //     Target: Column,
-    //     Target::SqlType: SqlType + SingleValue,
-    //     Expr: AsExpression<Target::SqlType>,
-    // {
-    //     type DieselType = diesel::dsl::Eq<Target, Expr>;
-
-    //     fn to_diesel(self) -> Self::DieselType {
-    //         diesel::ExpressionMethods::eq(self.target, self.expr)
-    //     }
-    // }
-
     impl<A, B> AsChangeset for Assign<A, B>
     where
         A: Column,

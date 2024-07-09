@@ -75,12 +75,18 @@ where
         R::update_where(self.inner.conn(), q, v)
     }
 
-    pub fn insert<R as base>(self: &mut Self[@cx], v: R) -> QueryResult<usize>
+    pub fn insert<R as base>(self: &mut Self[@cx], v: R{ <R as Row<U>>::allow_insert(cx.user, v) }) -> QueryResult<usize>
     where
-        R: bridge::Insert<T::Conn>
+        R: bridge::Insert<T::Conn> + Row<U>
     {
         R::insert(self.inner.conn(), v)
     }
+}
+
+
+#[generics(Self as base, U as base)]
+pub trait Row<U> {
+    reft allow_insert(user: U, row: Self) -> bool;
 }
 
 #[generics(Self as base, R as base, V as base)]

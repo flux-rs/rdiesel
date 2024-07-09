@@ -71,12 +71,16 @@ mod models {
 
     #[derive(Clone, Insertable)]
     #[diesel(table_name = crate::schema::wishes)]
-    pub struct WishInsert[owner: int, price: int, level: int] {
+    pub struct NewWish[owner: int, price: int, level: int] {
         pub owner: i32[owner],
         pub title: String,
         pub price: i32[price],
         pub body: String,
         pub access_level: i32[level],
+    }
+
+    impl rdiesel::Row<User> for NewWish {
+        reft allow_insert(user: User, wish: NewWish) -> bool { user.id == wish.owner }
     }
 
     // Wish.id
@@ -177,7 +181,7 @@ mod models {
     }
     );
 
-    impl diesel::associations::HasTable for WishInsert {
+    impl diesel::associations::HasTable for NewWish {
         type Table = crate::schema::wishes::table;
 
         fn table() -> Self::Table {
@@ -249,7 +253,7 @@ const _: () = {
 
 pub mod services {
     use crate::{
-        models::{Wish, WishInsert},
+        models::{NewWish, Wish},
         schema::*,
         Session, FRIENDS, PUBLIC,
     };
@@ -324,7 +328,7 @@ pub mod services {
 
         let auth_user = cx.auth_user();
 
-        let wish = WishInsert {
+        let wish = NewWish {
             owner: auth_user.id,
             title: "New wish".to_string(),
             price: 100,
